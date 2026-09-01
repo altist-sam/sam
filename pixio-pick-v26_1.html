@@ -1,0 +1,1142 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PIXIO PICK · 나에게 맞는 모니터 찾기</title>
+<!--
+====================================================================
+  PIXIO PICK — 게임·작업·예산 기반 모니터 추천 팝업  (Ver 2.6 / 단일 HTML)
+  데이터 출처 : 픽시오 모니터 게임 작업 추천가이드 Ver2.5
+                (적합도 매트릭스 / 추천 사양 / 홈페이지 문구 / 평가 기준 / 판매가 조사 / 구매 전 확인)
+
+  [디자인]
+  · pixiogaming.co.kr '제품 주문서'(pixio-order-form.html)와 동일한 디자인 언어를 사용합니다.
+    직각 모서리 · 1px 검정 구역 테두리 · 포인트 컬러 #ff4200 · 국문 SUIT / 영문 Artific.
+  · 폰트와 로고는 주문서 페이지와 같은 사내 서버 주소를 참조합니다.
+    (연결이 안 되면 시스템 기본 글꼴과 텍스트 로고로 자동 대체됩니다.)
+
+  [홈페이지 삽입 방법]
+  1) 이 파일 하나만 업로드하면 동작합니다. (JS 라이브러리 의존 없음)
+  2) 기존 페이지에 넣을 때는 <body> 안의
+       <div id="pxp-root"> ... </div>  블록과
+       <style id="pxp-style">, <script id="pxp-script">  3개만 복사하세요.
+     모든 CSS는 #pxp-root 하위로 스코프되어 기존 홈페이지 스타일과 충돌하지 않습니다.
+  3) 팝업 열기 : 아무 버튼에 onclick="PXP.open()" 또는 class="pxp-trigger" 부여
+     팝업 닫기 : PXP.close()
+  4) 자동 노출(첫 진입 3초 뒤 자동 오픈)은 스크립트 최하단 AUTO_OPEN 값을 true 로 변경.
+  5) 제품 상세페이지 연결 : 아래 MODELS 배열의 url 값을 실제 주소로 교체.
+  6) 개인정보 : 응답은 페이지 메모리에서만 다뤄지며 쿠키·localStorage·서버 전송을
+     일절 사용하지 않습니다. 결과 산출 직후 응답 객체를 즉시 초기화합니다.
+====================================================================
+-->
+<style id="pxp-style">
+/* ==================================================================
+   PIXIO PICK — 스타일
+   pixiogaming.co.kr '제품 주문서' 페이지와 동일한 디자인 언어를 사용합니다.
+   · 직각(모서리 반경 0) · 1px 검정 구역 테두리 · 포인트 컬러 #ff4200
+   · 국문 SUIT / 영문 Artific · 회색 배경(#f4f4f5) 위 흰 카드
+   모든 규칙은 #pxp-root 하위로만 적용되어 기존 페이지와 충돌하지 않습니다.
+   ================================================================== */
+@import url('https://cdn.jsdelivr.net/gh/sun-typeface/SUIT@2/fonts/variable/woff2/SUIT.css');
+@font-face{
+  font-family:'Artific';
+  src:url('https://hameetoy.speedgabia.com/pixio/pixiogaming/common/font/Artific-Regular.woff2') format('woff2');
+  font-weight:400; font-style:normal; font-display:swap;
+  unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+2000-206F,U+2074,U+20A9,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215;
+}
+@font-face{
+  font-family:'Artific';
+  src:url('https://hameetoy.speedgabia.com/pixio/pixiogaming/common/font/Artific-Bold.woff2') format('woff2');
+  font-weight:700; font-style:normal; font-display:swap;
+  unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+2000-206F,U+2074,U+20A9,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215;
+}
+
+#pxp-root, #pxp-root *, #pxp-root *::before, #pxp-root *::after { box-sizing: border-box; }
+#pxp-root {
+  --pxp-ink:#111;            /* 기본 텍스트 · 구역 테두리 */
+  --pxp-point:#ff4200;       /* 포인트 레드 */
+  --pxp-point-d:#e03900;     /* 포인트 눌림 */
+  --pxp-mid:#9a9a9a;         /* 입력 · 보조 테두리 */
+  --pxp-soft:#e2e2e2;        /* 내부 구분선 */
+  --pxp-mute:#8a8a8a;
+  --pxp-bg:#f4f4f5; --pxp-card:#fff; --pxp-head:#fafafa; --pxp-tint:#fff5f1;
+  --pxp-wl:#d8a800; --pxp-wbg:#fff8e1; --pxp-wtx:#7a5f00;
+  --pxp-l5:#ff4200; --pxp-l4:#111; --pxp-l3:#7a7a7a; --pxp-l2:#a9a9a9; --pxp-l1:#c8c8c8;
+  font-family:'Artific','SUIT','SUIT Variable',-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+#pxp-root .pxp-overlay{
+  position:fixed; inset:0; z-index:99999; display:none;
+  background:rgba(0,0,0,.55); padding:22px 14px; overflow-y:auto;
+}
+#pxp-root .pxp-overlay.is-open{ display:block; animation:pxpFade .2s ease both; }
+@keyframes pxpFade{from{opacity:0}to{opacity:1}}
+@keyframes pxpUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+@keyframes pxpIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+#pxp-root .pxp-modal{
+  position:relative; width:100%; max-width:880px; margin:0 auto; background:var(--pxp-bg);
+  border:1px solid var(--pxp-ink); border-radius:0; color:var(--pxp-ink);
+  animation:pxpUp .26s cubic-bezier(.2,.7,.3,1) both; overflow:hidden;
+  text-align:left; line-height:1.5; letter-spacing:-.2px;   /* 삽입 페이지의 정렬·행간 상속 차단 */
+}
+#pxp-root .pxp-modal::before{ content:""; position:absolute; top:0; left:0; right:0; height:4px; background:var(--pxp-point); }
+#pxp-root .pxp-x{
+  position:absolute; top:16px; right:14px; width:32px; height:32px; border-radius:0;
+  background:#fff; border:1px solid var(--pxp-ink); color:var(--pxp-ink);
+  font-size:17px; line-height:1; cursor:pointer; font-family:inherit; transition:.12s; z-index:2;
+}
+#pxp-root .pxp-x:hover{ background:var(--pxp-ink); color:#fff; }
+/* ---- 머리말 ---- */
+#pxp-root .pxp-head{ padding:22px 24px 18px; border-bottom:1px solid var(--pxp-ink); background:#fff; }
+#pxp-root .pxp-hrow{ display:flex; align-items:center; justify-content:space-between; gap:12px; padding-right:40px; }
+#pxp-root .pxp-logo{ height:28px; width:auto; display:block; }
+#pxp-root .pxp-brand-fb{ font-size:26px; font-weight:900; letter-spacing:-1px; font-style:italic; display:none; }
+#pxp-root .pxp-brand-fb span{ font-style:normal; }
+#pxp-root .pxp-doc{ font-size:28px; line-height:28px; font-weight:800; letter-spacing:-1.5px; }
+#pxp-root .pxp-title{ margin:16px 0 0; font-size:21px; font-weight:800; letter-spacing:-.8px; line-height:1.35; }
+#pxp-root .pxp-title em{ font-style:normal; color:var(--pxp-point); }
+#pxp-root .pxp-sub{ margin:7px 0 0; font-size:13px; color:var(--pxp-mute); line-height:1.6; }
+#pxp-root .pxp-body{ padding:20px 24px 24px; display:grid; grid-template-columns:1fr 232px; gap:18px; align-items:start; background:var(--pxp-bg); }
+#pxp-root .pxp-body.is-wide{ grid-template-columns:1fr; }
+#pxp-root .pxp-main{ min-width:0; }
+/* ---- 진행바 ---- */
+#pxp-root .pxp-prog{ display:flex; align-items:center; gap:12px; margin-bottom:14px; }
+#pxp-root .pxp-prog-bar{ flex:1; height:6px; background:var(--pxp-soft); border-radius:0; overflow:hidden; }
+#pxp-root .pxp-prog-fill{ height:100%; width:0; background:var(--pxp-point); transition:width .35s cubic-bezier(.3,.8,.3,1); }
+#pxp-root .pxp-prog-txt{ font-size:11.5px; font-weight:800; color:var(--pxp-mute); letter-spacing:0; white-space:nowrap; }
+/* ---- 카드 · 구역 머리 (주문서 .card / .sec-head 와 동일) ---- */
+#pxp-root .pxp-sheet{ background:var(--pxp-card); border:1px solid var(--pxp-ink); border-radius:0; }
+#pxp-root .pxp-sec-head{ display:flex; align-items:center; justify-content:space-between; gap:10px;
+  padding:13px 16px; border-bottom:1px solid var(--pxp-ink); background:var(--pxp-head); }
+#pxp-root .pxp-sec-head h3{ margin:0; font-size:17px; font-weight:800; letter-spacing:-.5px; line-height:1.35; }
+#pxp-root .pxp-sec-head .note{ flex:0 0 auto; font-size:12px; color:var(--pxp-mute); font-weight:500; text-align:right; line-height:1.4; }
+#pxp-root .pxp-sec-body{ padding:16px; }
+/* ---- 문항 ---- */
+#pxp-root #pxpStage{ transition:opacity .17s ease, transform .17s ease; }
+#pxp-root #pxpStage.is-out{ opacity:0; transform:translateY(-8px); }
+#pxp-root .pxp-q{ animation:pxpIn .26s ease both; }
+#pxp-root .pxp-opts{ display:grid; grid-template-columns:repeat(2,1fr); gap:10px; }
+#pxp-root .pxp-opts.is-single{ grid-template-columns:1fr; }
+#pxp-root .pxp-opt{
+  position:relative; width:100%; text-align:left; padding:14px 15px; border-radius:0;
+  background:#fff; border:1px solid var(--pxp-mid); color:var(--pxp-ink);
+  cursor:pointer; font-family:inherit; transition:.12s;
+}
+#pxp-root .pxp-opt:hover{ border-color:var(--pxp-ink); }
+#pxp-root .pxp-opt.is-sel{ border-color:var(--pxp-point); background:var(--pxp-tint); box-shadow:inset 0 0 0 1px var(--pxp-point); }
+#pxp-root .pxp-opt-l{ display:flex; align-items:center; gap:10px; font-size:14.5px; font-weight:700; letter-spacing:-.3px; }
+#pxp-root .pxp-opt-l .pxp-chk{
+  width:22px; height:22px; border-radius:0; border:1px solid var(--pxp-ink); background:#fff; flex:0 0 auto;
+  display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:800; color:#fff; line-height:1;
+}
+#pxp-root .pxp-opt.is-sel .pxp-chk{ background:var(--pxp-point); border-color:var(--pxp-point); }
+#pxp-root .pxp-opt-d{ margin-top:6px; padding-left:32px; font-size:12px; color:var(--pxp-mute); line-height:1.55; }
+#pxp-root .pxp-nav{ display:flex; gap:10px; margin-top:16px; }
+#pxp-root .pxp-btn{
+  padding:15px 20px; border-radius:0; font-size:15.5px; font-weight:800; letter-spacing:-.4px; cursor:pointer;
+  border:1px solid var(--pxp-ink); background:#fff; color:var(--pxp-ink); font-family:inherit; transition:.12s;
+}
+#pxp-root .pxp-btn:hover{ background:#efefef; }
+#pxp-root .pxp-btn-main{ flex:1; border-color:var(--pxp-point); background:var(--pxp-point); color:#fff; }
+#pxp-root .pxp-btn-main:hover{ background:var(--pxp-point-d); border-color:var(--pxp-point-d); color:#fff; }
+#pxp-root .pxp-btn-main:disabled{ opacity:.45; cursor:not-allowed; background:var(--pxp-point); border-color:var(--pxp-point); }
+#pxp-root .pxp-nav .pxp-btn:not(.pxp-btn-main){ flex:0 0 30%; }
+/* ---- 선택 요약 ---- */
+#pxp-root .pxp-side{ border:1px solid var(--pxp-ink); border-radius:0; background:var(--pxp-card); }
+#pxp-root .pxp-side-t{ padding:13px 15px; border-bottom:1px solid var(--pxp-ink); background:var(--pxp-head);
+  font-size:13.5px; font-weight:800; letter-spacing:-.4px; color:var(--pxp-ink); }
+#pxp-root .pxp-sum{ list-style:none; margin:0; padding:6px 15px 10px; }
+#pxp-root .pxp-sum li{ padding:7px 0; border-bottom:1px solid var(--pxp-soft); }
+#pxp-root .pxp-sum li:last-child{ border-bottom:none; }
+#pxp-root .pxp-sum .k{ display:flex; align-items:center; gap:7px; font-size:11px; color:var(--pxp-mute); font-weight:700; }
+#pxp-root .pxp-sum .k i{ font-style:normal; width:16px; height:16px; border-radius:0; background:#fff; border:1px solid var(--pxp-mid);
+  display:flex; align-items:center; justify-content:center; font-size:9.5px; font-weight:800; color:var(--pxp-mute); flex:0 0 auto; }
+#pxp-root .pxp-sum .v{ margin-top:4px; font-size:12.5px; font-weight:700; color:var(--pxp-ink); line-height:1.45; word-break:keep-all; }
+#pxp-root .pxp-sum li.is-todo .v{ color:#c8c8c8; }
+#pxp-root .pxp-sum li.is-now .k{ color:var(--pxp-point); }
+#pxp-root .pxp-sum li.is-now .k i{ background:var(--pxp-point); border-color:var(--pxp-point); color:#fff; }
+#pxp-root .pxp-sum li.is-done .k i{ background:var(--pxp-ink); border-color:var(--pxp-ink); color:#fff; }
+#pxp-root .pxp-sum li.is-done{ cursor:pointer; }
+#pxp-root .pxp-sum li.is-done:hover .v{ color:var(--pxp-point); }
+/* ---- 분석 로딩 ---- */
+#pxp-root .pxp-load{ padding:16px 0 8px; text-align:center; animation:pxpIn .3s ease both; }
+#pxp-root .pxp-scan{ position:relative; width:154px; height:154px; margin:0 auto 4px; }
+#pxp-root .pxp-scan svg{ width:100%; height:100%; display:block; }
+#pxp-root .pxp-ring{ fill:none; stroke:var(--pxp-soft); stroke-width:1.4; }
+#pxp-root .pxp-ring-a{ stroke:rgba(255,66,0,.4); stroke-dasharray:5 7; transform-origin:80px 80px; animation:pxpSpin 7s linear infinite; }
+#pxp-root .pxp-ring-b{ stroke:#c4c4c4; stroke-dasharray:2 9; transform-origin:80px 80px; animation:pxpSpin 4.5s linear infinite reverse; }
+#pxp-root .pxp-sweep{ transform-origin:80px 80px; animation:pxpSpin 1.5s cubic-bezier(.5,.1,.5,.9) infinite; }
+#pxp-root .pxp-blip{ animation:pxpBlip 1.5s ease-in-out infinite; }
+@keyframes pxpSpin{ to{ transform:rotate(360deg) } }
+@keyframes pxpBlip{ 0%,100%{opacity:.18} 50%{opacity:1} }
+#pxp-root .pxp-scan-pct{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+  font-size:31px; font-weight:800; letter-spacing:-1.5px; color:var(--pxp-ink); }
+#pxp-root .pxp-scan-pct span{ font-size:14px; font-weight:700; margin-left:1px; color:var(--pxp-point); }
+#pxp-root .pxp-load-t{ font-size:17px; font-weight:800; letter-spacing:-.5px; margin-top:8px; }
+#pxp-root .pxp-load-s{ font-size:12.5px; color:var(--pxp-mute); margin-top:6px; }
+#pxp-root .pxp-steps{ list-style:none; margin:20px auto 0; padding:0; max-width:330px; text-align:left; }
+#pxp-root .pxp-steps li{ display:flex; align-items:center; gap:10px; font-size:12.5px; color:#bcbcbc; padding:5px 0; transition:color .3s ease; }
+#pxp-root .pxp-steps li .pxp-dot{ width:14px; height:14px; border-radius:0; border:1px solid var(--pxp-mid); background:#fff; flex:0 0 auto; transition:.3s; }
+#pxp-root .pxp-steps li.is-on{ color:var(--pxp-ink); font-weight:700; }
+#pxp-root .pxp-steps li.is-on .pxp-dot{ border-color:var(--pxp-point); background:var(--pxp-tint); }
+#pxp-root .pxp-steps li.is-done{ color:#6a6a6a; }
+#pxp-root .pxp-steps li.is-done .pxp-dot{ background:var(--pxp-point); border-color:var(--pxp-point); }
+#pxp-root .pxp-tick{ margin-top:16px; font-size:11.5px; color:var(--pxp-mute); height:16px; }
+#pxp-root .pxp-tick b{ color:var(--pxp-ink); font-weight:800; }
+/* ---- 결과 ---- */
+#pxp-root .pxp-res{ animation:pxpIn .3s ease both; }
+#pxp-root .pxp-chips{ display:flex; flex-wrap:wrap; gap:6px; margin-bottom:14px; }
+#pxp-root .pxp-chip{ padding:5px 10px; border-radius:0; font-size:11.5px; font-weight:700; color:#5a5a5a;
+  background:#fff; border:1px solid var(--pxp-soft); }
+#pxp-root .pxp-chip b{ color:var(--pxp-ink); font-weight:800; }
+#pxp-root .pxp-card{ background:var(--pxp-card); border:1px solid var(--pxp-ink); border-radius:0; }
+#pxp-root .pxp-card > .pxp-sec-body{ padding:20px 18px 18px; }
+#pxp-root .pxp-badge{ display:inline-block; padding:4px 10px; border-radius:0; font-size:11px; font-weight:800;
+  background:var(--pxp-point); color:#fff; letter-spacing:-.2px; }
+#pxp-root .pxp-badge.col{ background:#fff; color:var(--pxp-ink); border:1px solid var(--pxp-ink); margin-left:5px; }
+#pxp-root .pxp-card-top{ display:flex; justify-content:space-between; align-items:flex-start; gap:16px; margin-top:11px; }
+#pxp-root .pxp-name{ margin:0; font-size:23px; font-weight:800; letter-spacing:-1px; line-height:1.3; }
+#pxp-root .pxp-model{ margin:5px 0 0; font-size:11.5px; color:var(--pxp-mute); font-weight:700; letter-spacing:0; }
+#pxp-root .pxp-fit{ text-align:right; flex:0 0 auto; }
+#pxp-root .pxp-fit-n{ font-size:34px; font-weight:800; line-height:1; letter-spacing:-2px; color:var(--pxp-point); }
+#pxp-root .pxp-fit-l{ font-size:10.5px; color:var(--pxp-mute); font-weight:700; margin-top:5px; }
+#pxp-root .pxp-hl{ margin:16px 0 8px; font-size:15px; font-weight:800; color:var(--pxp-point); letter-spacing:-.4px; }
+#pxp-root .pxp-desc{ margin:0; font-size:13.2px; line-height:1.78; color:#3f3f3f; }
+#pxp-root .pxp-specs{ display:flex; flex-wrap:wrap; gap:6px; margin-top:16px; }
+#pxp-root .pxp-spec{ padding:5px 10px; border-radius:0; font-size:11.5px; font-weight:700; color:#444; background:var(--pxp-head); border:1px solid var(--pxp-soft); }
+#pxp-root .pxp-bars{ margin-top:18px; padding-top:16px; border-top:1px solid var(--pxp-soft); }
+#pxp-root .pxp-bars-t{ font-size:12px; font-weight:800; color:var(--pxp-ink); margin-bottom:12px; letter-spacing:-.3px; }
+#pxp-root .pxp-bar{ display:grid; grid-template-columns:96px 1fr 62px; align-items:center; gap:10px; margin-bottom:8px; }
+#pxp-root .pxp-bar-k{ font-size:12px; color:#5a5a5a; font-weight:700; }
+#pxp-root .pxp-bar-t{ height:8px; background:var(--pxp-soft); border-radius:0; overflow:hidden; }
+#pxp-root .pxp-bar-f{ height:100%; border-radius:0; width:0; transition:width .6s cubic-bezier(.3,.8,.3,1); }
+#pxp-root .pxp-bar-v{ font-size:11px; font-weight:800; text-align:right; }
+#pxp-root .pxp-note{ margin-top:14px; padding:12px 14px; border-radius:0; font-size:12.2px; line-height:1.65;
+  background:var(--pxp-wbg); border:1px solid var(--pxp-wl); color:#5e4c10; }
+#pxp-root .pxp-note strong{ color:var(--pxp-wtx); font-weight:800; }
+#pxp-root .pxp-alt-t{ font-size:13.5px; font-weight:800; letter-spacing:-.4px; color:var(--pxp-ink);
+  margin:22px 0 10px; padding-bottom:8px; border-bottom:1px solid var(--pxp-ink); }
+#pxp-root .pxp-alts{ display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:10px; }
+#pxp-root .pxp-alt{ padding:15px 14px; border-radius:0; background:#fcfcfc; border:1px solid var(--pxp-mid); transition:.12s; }
+#pxp-root .pxp-alt:hover{ border-color:var(--pxp-ink); }
+#pxp-root .pxp-alt-h{ display:flex; justify-content:space-between; align-items:baseline; gap:8px; }
+#pxp-root .pxp-alt-n{ font-size:14.5px; font-weight:800; letter-spacing:-.4px; line-height:1.35; }
+#pxp-root .pxp-alt-d{ margin-top:7px; font-size:11.8px; color:var(--pxp-mute); line-height:1.6; }
+#pxp-root .pxp-alt-s{ margin-top:9px; font-size:11px; color:#8a8a8a; }
+#pxp-root .pxp-cta{ display:flex; gap:10px; margin-top:22px; }
+#pxp-root .pxp-cta a.pxp-btn-main{ flex:1; text-align:center; text-decoration:none; display:block; }
+#pxp-root .pxp-cta .pxp-btn:not(.pxp-btn-main){ flex:0 0 34%; }
+#pxp-root .pxp-foot{ margin-top:14px; font-size:11px; color:var(--pxp-mute); line-height:1.6; text-align:center; }
+/* ---- 최대 선택 안내 ---- */
+#pxp-root .pxp-opt-l .pxp-tag2{ margin-left:auto; font-size:11.5px; font-weight:800; color:var(--pxp-mute); letter-spacing:-.2px; }
+#pxp-root .pxp-opt.is-sel .pxp-tag2{ color:var(--pxp-point); }
+#pxp-root .pxp-hint{ margin-top:12px; font-size:12px; color:#5e4c10; background:var(--pxp-wbg); border:1px solid var(--pxp-wl);
+  padding:10px 12px; border-radius:0; line-height:1.6; }
+#pxp-root .pxp-hint b{ color:var(--pxp-wtx); font-weight:800; }
+/* ---- 구매 전 확인 ---- */
+#pxp-root .pxp-pre{ margin-top:16px; padding:14px 16px; border-radius:0; background:var(--pxp-head); border:1px solid var(--pxp-soft); }
+#pxp-root .pxp-pre.is-important{ background:var(--pxp-tint); border-color:var(--pxp-point); }
+#pxp-root .pxp-pre-t{ display:flex; align-items:center; gap:7px; font-size:12.5px; font-weight:800; letter-spacing:-.3px; color:#5a5a5a; }
+#pxp-root .pxp-pre.is-important .pxp-pre-t{ color:var(--pxp-point); }
+#pxp-root .pxp-pre p{ margin:8px 0 0; font-size:12.8px; line-height:1.75; color:#4a4a4a; letter-spacing:-.2px; }
+#pxp-root .pxp-pre.is-important p{ color:#5c3320; }
+/* ---- 조건이 바뀐 이유 ---- */
+#pxp-root .pxp-swap{ margin:0 0 12px; padding:14px 16px; border-radius:0; background:var(--pxp-tint); border:1px solid var(--pxp-point); }
+#pxp-root .pxp-swap-t{ display:flex; align-items:center; gap:8px; font-size:15px; font-weight:800; letter-spacing:-.5px; color:var(--pxp-ink); line-height:1.4; }
+#pxp-root .pxp-swap-t svg{ flex:0 0 auto; }
+#pxp-root .pxp-swap p{ margin:9px 0 0; font-size:13px; line-height:1.72; color:#5c3320; }
+#pxp-root .pxp-chip.changed{ background:var(--pxp-tint); border-color:var(--pxp-point); color:#a33000; }
+#pxp-root .pxp-chip.changed s{ color:#d3a08c; margin-right:3px; }
+#pxp-root .pxp-chip.changed b{ color:var(--pxp-point); }
+/* ---- 선정 근거 ---- */
+#pxp-root .pxp-why{ margin-top:14px; padding:12px 14px; border-radius:0; font-size:12.8px; line-height:1.65;
+  background:var(--pxp-head); border:1px solid var(--pxp-soft); color:#5a5a5a; }
+#pxp-root .pxp-why b{ color:var(--pxp-ink); }
+#pxp-root .pxp-why em{ font-style:normal; color:var(--pxp-point); font-weight:800; }
+/* ---- 가격 (주문서 .total-bar 와 동일한 형태) ---- */
+#pxp-root .pxp-price{ display:flex; align-items:flex-end; gap:18px; flex-wrap:wrap; margin-top:16px;
+  padding:14px 16px; border-radius:0; background:var(--pxp-head); border:1px solid var(--pxp-ink); }
+#pxp-root .pxp-price .pl{ font-size:11px; font-weight:800; color:var(--pxp-mute); }
+#pxp-root .pxp-price .pn{ font-size:27px; font-weight:800; letter-spacing:-1.2px; line-height:1; color:var(--pxp-ink); margin-top:8px; }
+#pxp-root .pxp-price .pn span{ font-size:15px; font-weight:700; margin-left:2px; }
+#pxp-root .pxp-price .po{ font-size:12.5px; color:var(--pxp-mute); margin-top:9px; line-height:1.5; }
+#pxp-root .pxp-price .po s{ color:#b5b5b5; }
+#pxp-root .pxp-price .po b{ color:var(--pxp-point); font-weight:800; }
+#pxp-root .pxp-tier{ margin-left:auto; padding:5px 11px; border-radius:0; font-size:11.5px; font-weight:800;
+  color:#555; background:#fff; border:1px solid currentColor; }
+#pxp-root .pxp-price.na{ background:var(--pxp-wbg); border-color:var(--pxp-wl); }
+#pxp-root .pxp-price.na .pn{ font-size:18px; color:var(--pxp-wtx); letter-spacing:-.4px; }
+#pxp-root .pxp-alt-p{ margin-top:7px; font-size:13px; font-weight:800; color:var(--pxp-ink); }
+#pxp-root .pxp-alt-p span{ font-size:11.5px; font-weight:700; color:var(--pxp-mute); margin-left:6px; }
+/* ---- 개인정보 안내 ---- */
+#pxp-root .pxp-privacy{ display:flex; align-items:flex-start; gap:11px; padding:14px 24px;
+  border-top:1px solid var(--pxp-ink); background:var(--pxp-head); }
+#pxp-root .pxp-privacy svg{ flex:0 0 auto; margin-top:1px; }
+#pxp-root .pxp-privacy p{ margin:0; font-size:12px; line-height:1.65; color:#5a5a5a; }
+#pxp-root .pxp-privacy b{ color:var(--pxp-point); font-weight:800; }
+#pxp-root .pxp-privacy u{ text-decoration:none; font-weight:800; color:var(--pxp-ink); }
+@media (max-width:860px){
+  #pxp-root .pxp-body{ grid-template-columns:1fr; gap:14px; }
+  #pxp-root .pxp-side{ order:2; }
+  #pxp-root .pxp-sum{ display:grid; grid-template-columns:1fr 1fr; gap:0 16px; }
+}
+@media (max-width:620px){
+  #pxp-root .pxp-overlay{ padding:12px 10px; }
+  #pxp-root .pxp-head{ padding:20px 16px 16px; } #pxp-root .pxp-body{ padding:16px 16px 20px; }
+  #pxp-root .pxp-privacy{ padding:13px 16px; }
+  #pxp-root .pxp-logo{ height:24px; } #pxp-root .pxp-doc{ font-size:22px; line-height:22px; }
+  #pxp-root .pxp-title{ font-size:18px; } #pxp-root .pxp-opts{ grid-template-columns:1fr; }
+  #pxp-root .pxp-sec-head{ flex-direction:column; align-items:flex-start; gap:4px; }
+  #pxp-root .pxp-sec-head .note{ text-align:left; }
+  #pxp-root .pxp-card > .pxp-sec-body{ padding:16px 14px; }
+  #pxp-root .pxp-name{ font-size:19px; }
+  #pxp-root .pxp-fit-n{ font-size:28px; } #pxp-root .pxp-bar{ grid-template-columns:80px 1fr 54px; }
+  #pxp-root .pxp-cta{ flex-direction:column; } #pxp-root .pxp-cta .pxp-btn:not(.pxp-btn-main){ flex:1 1 auto; }
+  #pxp-root .pxp-sum{ grid-template-columns:1fr; }
+  /* 모바일에서는 요약을 이미 답한 항목만 한 줄로 압축 */
+  #pxp-root .pxp-sum li.is-todo{ display:none; }
+  #pxp-root .pxp-sum li{ display:flex; align-items:baseline; gap:9px; padding:5px 0; border-bottom:none; }
+  #pxp-root .pxp-price{ gap:12px; } #pxp-root .pxp-tier{ margin-left:0; }
+  #pxp-root .pxp-sum .k{ flex:0 0 auto; }
+  #pxp-root .pxp-sum .v{ margin-top:0; font-size:12px; }
+}
+/* ---- 데모 페이지(삽입 시 불필요) ---- */
+body.pxp-demo{ margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center;
+  background:#f4f4f5; color:#111;
+  font-family:'Artific','SUIT','SUIT Variable',-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo",sans-serif;
+  text-align:center; padding:40px 20px; letter-spacing:-.2px; }
+body.pxp-demo h1{ font-size:34px; font-weight:800; letter-spacing:-1.5px; margin:0 0 10px; }
+body.pxp-demo h1 span{ color:#ff4200; }
+body.pxp-demo p{ color:#8a8a8a; font-size:14.5px; line-height:1.7; margin:0 0 26px; }
+body.pxp-demo .pxp-trigger{ padding:16px 34px; border:1px solid #ff4200; border-radius:0; font-size:16px; font-weight:800;
+  cursor:pointer; color:#fff; background:#ff4200; font-family:inherit; letter-spacing:-.4px; transition:.12s; }
+body.pxp-demo .pxp-trigger:hover{ background:#e03900; border-color:#e03900; }
+</style>
+</head>
+<body class="pxp-demo">
+
+<!-- ▼ 데모용 배경 (홈페이지 삽입 시 삭제) -->
+<div>
+  <h1><span>PIXIO PICK</span></h1>
+  <p>몇 가지 질문에 답하시면<br>나에게 맞는 모니터를 찾아드립니다.</p>
+  <button class="pxp-trigger">내게 맞는 픽시오 찾기</button>
+</div>
+<!-- ▲ 데모용 배경 끝 -->
+
+<!-- ▼ 여기부터 복사 -->
+<div id="pxp-root">
+  <div class="pxp-overlay" id="pxpOverlay" role="dialog" aria-modal="true" aria-labelledby="pxpTitle">
+    <div class="pxp-modal">
+      <button class="pxp-x" id="pxpClose" aria-label="닫기">&times;</button>
+
+      <div class="pxp-head">
+        <div class="pxp-hrow">
+          <img class="pxp-logo" src="https://hameetoy.speedgabia.com/pixio/pixiogaming/common/logo/pixio-black-logo.webp" alt="PIXIO"
+               onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
+          <div class="pxp-brand-fb">P<span>ixio</span></div>
+          <div class="pxp-doc">모니터 추천</div>
+        </div>
+        <h2 class="pxp-title" id="pxpTitle">나에게 맞는 픽시오는 <em>어떤 모델일까요?</em></h2>
+        <p class="pxp-sub" id="pxpSub">즐겨 하시는 게임과 주로 하시는 일, 예산을 알려주시면 가장 잘 맞는 모니터를 찾아드립니다.</p>
+      </div>
+
+      <div class="pxp-body" id="pxpBody">
+        <div class="pxp-main">
+          <div class="pxp-prog" id="pxpProg">
+            <div class="pxp-prog-bar"><div class="pxp-prog-fill" id="pxpProgFill"></div></div>
+            <div class="pxp-prog-txt" id="pxpProgTxt">1 / 7</div>
+          </div>
+          <div id="pxpStage"></div>
+        </div>
+        <aside class="pxp-side" id="pxpSide">
+          <div class="pxp-side-t">내가 선택한 조건</div>
+          <ul class="pxp-sum" id="pxpSum"></ul>
+        </aside>
+      </div>
+
+      <div class="pxp-privacy">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#ff4200" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><path d="M9 12l2 2 4-4"></path>
+        </svg>
+        <p><b>개인정보 안내</b> &nbsp;응답 내용은 <u>제품 추천에만 사용되며, 마케팅 목적으로 활용하지 않습니다.</u> 서버로 전송하거나 따로 저장하지 않으며, <u>추천 결과가 나오는 즉시 입력하신 응답은 삭제됩니다.</u></p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script id="pxp-script">
+var PXP = (function () {
+  "use strict";
+
+  /* ========== 1. 모델 데이터 (출처: 추천가이드 Ver2.5) ==========
+     s        : 용도별 적합도 1~5점 — '적합도 매트릭스' (Ver1.4 → 2.5 변경 없음)
+     inch/res : 화면 크기·해상도 하드 조건 — '게임 및 작업 추천 사양' 시트
+     price    : '판매가 조사' 시트 (2026-08-28 확인)
+     pre      : '구매 전 확인' 시트의 검토 상태와 고객 안내 문구 (2026-09-01 검토)
+     consoleNative : 콘솔에서 네이티브 해상도·화면비 활용 가능 여부 (PXC348CN은 21:9 미지원)
+     ※ 가격·컬러는 가산점 단계에서만 사용하며 1~5점 적합도에는 합산하지 않습니다.   */
+  var MODELS = [
+    { id:"PX27Q280OLEDG", name:"PX27 LUMA OLED Glossy", series:"LUMA OLED", badge:"화질+속도 올인원",
+      headline:"280Hz의 속도, OLED의 깊이",
+      desc:"QHD·280Hz·0.03ms(GTG)의 빠른 화면에 Tandem OLED의 높은 명암비와 네이티브 10bit 색 표현을 더했습니다. 경쟁 FPS부터 어두운 장면이 많은 액션 RPG, 사진·영상 편집과 USB-C 노트북 작업까지 한 대로 폭넓게 사용하려는 사용자에게 적합합니다.",
+      short:"OLED 화질·속도·연결성을 함께 갖춘 하이엔드 올라운드",
+      specs:["27형 QHD","Tandem OLED","280Hz","0.03ms(GTG)","명암비 1,500,000:1","네이티브 10bit","Type-C 65W","풀 스탠드"],
+      inch:27, res:"qhd", refresh:280, colorways:1, consoleNative:true,
+      price:{ now:null, normal:null, off:null, tier:"공식가 확인 예정", status:"공식가 미확인",
+              url:"https://pixiogaming.co.kr/product/search.html?keyword=PX27Q280OLEDG" },
+      pre:{ level:"조건 확인",
+            text:"280Hz는 PC 환경 기준입니다. 콘솔은 지원 게임과 설정에 따라 최대 120Hz 범위로 동작하며, USB-C 전력 공급은 최대 65W입니다." },
+      s:{fps:5,moba:4,race:4,aaa:5,dark:5,hires:4,doc:4,multi:3,photo:5,video:5,usbc:5} },
+
+    { id:"PX277PNV2", name:"PX277PNV2 Prime Neo V2", series:"Neo", badge:"QHD 균형형",
+      headline:"QHD 고주사율, 플레이와 작업의 균형",
+      desc:"27형 QHD의 선명한 작업 공간과 빠른 화면 전환을 함께 갖춘 균형형 모델입니다. FPS·MOBA·RTS부터 문서, 코딩, 일반 콘텐츠 편집까지 하나의 모니터로 해결하고 싶은 사용자에게 잘 맞습니다.",
+      short:"QHD 고주사율 기반의 게임·업무 균형형",
+      specs:["27형 QHD","Fast IPS","200Hz","1ms(GTG)","400cd/m²","sRGB 131.47%","풀 스탠드"],
+      inch:27, res:"qhd", refresh:200, colorways:1, consoleNative:true,
+      price:{ now:379000, normal:399000, off:6, tier:"합리적 선택", status:"판매 중",
+              url:"https://pixiogaming.co.kr/product/px277pnv2-prime-neo-v2/54/category/46/display/1/" },
+      pre:{ level:"사양 재확인",
+            text:"콘솔은 QHD·120Hz 범위로 활용되며 200Hz는 PC 환경용입니다." },
+      s:{fps:4,moba:5,race:4,aaa:4,dark:3,hires:3,doc:5,multi:4,photo:4,video:4,usbc:1} },
+
+    { id:"PXC348CN", name:"PXC348CN Curved Neo", series:"Neo", badge:"몰입+멀티태스킹",
+      headline:"1000R 울트라와이드로, 몰입과 멀티태스킹을 한 화면에",
+      desc:"34형 UWQHD·1000R 곡면·180Hz 조합은 PC 레이싱과 시뮬레이션, 오픈월드 게임의 넓은 장면을 깊이 있게 보여줍니다. Type-C 65W와 PIP/PBP를 활용하면 영상 타임라인, 대형 시트, 두 기기 병행 작업에도 강합니다. 21:9 장점은 PC 환경에서 가장 온전히 활용됩니다.",
+      short:"PC 울트라와이드 몰입감과 멀티태스킹 중심",
+      specs:["34형 UWQHD","Fast VA","1000R 곡면","180Hz","명암비 3,000:1","Type-C 65W","PIP/PBP"],
+      inch:34, res:"uwqhd", refresh:180, colorways:1, consoleNative:false,
+      price:{ now:463000, normal:579000, off:21, tier:"기능 확장형", status:"판매 중",
+              url:"https://pixiogaming.co.kr/product/pxc348cn-curved-neo/57/category/46/display/1/" },
+      pre:{ level:"중요 안내",
+            text:"콘솔 연결은 가능하지만 3440×1440·21:9 출력은 지원되지 않습니다. 화면비 유지 시 좌우 여백이 생기며, 확대 설정 시 왜곡 또는 일부 잘림이 발생할 수 있습니다. HDMI 입력은 최대 100Hz로 120Hz 콘솔 모드를 이용할 수 없습니다." },
+      s:{fps:4,moba:5,race:5,aaa:5,dark:4,hires:4,doc:5,multi:5,photo:4,video:5,usbc:5} },
+
+    { id:"PX248WAVE", name:"PX248 Wave Flex", series:"Wave", badge:"콤팩트 200Hz",
+      headline:"작은 책상에서도 200Hz의 경쾌함",
+      desc:"24형 FHD·200Hz·1ms(GTG)의 간결한 조합으로 FPS와 MOBA를 빠르게 즐길 수 있습니다. 8가지 컬러 선택지로 책상과 주변기기 분위기에 맞추기 쉬워, 문서·학습용 메인 화면이나 공간 효율이 중요한 듀얼 모니터 구성에도 잘 어울립니다.",
+      short:"컴팩트한 FHD 환경에서 빠른 게임과 데스크 조화",
+      specs:["24형 FHD","Fast IPS","200Hz","1ms(GTG)","Adaptive Sync 48~200Hz","3W×2 스피커"],
+      inch:24, res:"fhd", refresh:200, colorways:8, consoleNative:true,
+      price:{ now:293000, normal:299000, off:3, tier:"가볍게 시작", status:"판매 중",
+              url:"https://pixiogaming.co.kr/product/px248-wave-flex/42/category/46/display/1/" },
+      pre:{ level:"일반 안내",
+            text:"200Hz는 PC 환경 기준이며 콘솔에서는 최대 120Hz 범위로 활용됩니다. USB 단자는 펌웨어 업데이트 전용으로 충전·허브 기능은 지원하지 않습니다." },
+      s:{fps:4,moba:4,race:3,aaa:3,dark:2,hires:2,doc:3,multi:2,photo:2,video:2,usbc:1} },
+
+    { id:"PX278WAVE", name:"PX278 Wave Flex", series:"Wave", badge:"QHD 올라운더",
+      headline:"QHD 180Hz, 플레이와 작업의 균형",
+      desc:"27형 QHD·180Hz·1ms(GTG)의 균형으로 빠른 게임과 선명한 작업 화면을 모두 제공합니다. 8가지 컬러 선택지로 주변기기와 책상 분위기에 맞춘 구성이 가능해, FPS와 액션 RPG부터 문서, 디자인, 영상 편집까지 폭넓게 활용하려는 사용자에게 적합합니다.",
+      short:"QHD 180Hz 기반의 범용 게임·작업과 데스크 조화",
+      specs:["27형 QHD","Fast IPS","180Hz","1ms(GTG)","10.7억 컬러(8bit+FRC)","DCI-P3 96.5%","FreeSync"],
+      inch:27, res:"qhd", refresh:180, colorways:8, consoleNative:true,
+      price:{ now:410000, normal:419000, off:3, tier:"기능 확장형", status:"판매 중",
+              url:"https://pixiogaming.co.kr/product/px278-wave-flex/40/category/46/display/1/" },
+      pre:{ level:"조건 확인",
+            text:"180Hz는 DP 연결 기준이며 HDMI는 최대 144Hz입니다. 콘솔은 지원 게임과 설정에 따라 QHD·120Hz 범위로 활용할 수 있고, USB는 펌웨어 업데이트 전용입니다." },
+      s:{fps:4,moba:5,race:4,aaa:4,dark:3,hires:3,doc:4,multi:4,photo:4,video:4,usbc:1} },
+
+    { id:"PX32UWAVE", name:"PX32U Wave Creator", series:"Wave", badge:"4K 대화면",
+      headline:"4K의 디테일을 144Hz로",
+      desc:"32형 4K UHD와 144Hz를 결합해 AAA 게임의 세밀한 장면과 넓은 작업 화면을 동시에 제공합니다. WAVE 시리즈의 8가지 컬러 선택 폭은 대화면 작업 공간을 주변기기와 조화롭게 구성하는 데 도움이 되며, 4K 영상 편집, 대형 시트, 디자인·3D 작업처럼 화면 정보량이 중요한 사용자에게 잘 맞습니다.",
+      short:"4K 대화면·콘텐츠 제작과 공간 연출",
+      specs:["32형 4K UHD","Fast IPS","144Hz","1ms(GTG)","Adobe RGB 102.27%","HDMI 2.1×2","DP 1.4×2"],
+      inch:32, res:"uhd", refresh:144, colorways:8, consoleNative:true,
+      price:{ now:736000, normal:827000, off:12, tier:"플래그십형", status:"판매 중",
+              url:"https://pixiogaming.co.kr/product/px32u-wave-creator/52/category/46/display/1/" },
+      pre:{ level:"조건 확인",
+            text:"4K·120Hz 콘솔 사용은 콘솔·게임·설정·HDMI 케이블 조건을 모두 충족해야 합니다. 144Hz는 PC 환경 기준이며 USB-C와 PIP/PBP는 지원하지 않습니다." },
+      s:{fps:3,moba:4,race:4,aaa:5,dark:3,hires:5,doc:5,multi:5,photo:5,video:5,usbc:1} },
+
+    { id:"PX257H", name:"PX257H Hayabusa", series:"Hayabusa", badge:"300Hz e스포츠",
+      headline:"300Hz에 맞춘 실전형 e스포츠 화면",
+      desc:"25형 FHD·300Hz·1ms(GTG) 구성은 전술 FPS와 배틀로얄처럼 빠른 판단이 필요한 경쟁 게임에 초점을 맞췄습니다. 높이·피벗·스위블 조절을 지원해 경기 환경과 스트리밍 보조 화면 구성도 유연합니다.",
+      short:"300Hz 경쟁 플레이와 e스포츠 환경 중심",
+      specs:["25형 FHD","Fast IPS","300Hz","1ms(GTG)","블랙 이퀄라이저","풀 스탠드(피벗)"],
+      inch:25, res:"fhd", refresh:300, colorways:1, consoleNative:true,
+      price:{ now:380900, normal:389000, off:3, tier:"합리적 선택", status:"판매 중",
+              url:"https://pixiogaming.co.kr/product/px257h-hayabusa/49/category/46/display/1/" },
+      pre:{ level:"조건 확인",
+            text:"300Hz는 PC 환경 기준입니다. 콘솔 연결은 가능하지만 최대 120Hz 범위로 제한되어 초고주사율의 장점을 모두 활용할 수 없습니다." },
+      s:{fps:5,moba:4,race:4,aaa:3,dark:2,hires:2,doc:3,multi:3,photo:2,video:2,usbc:1} },
+
+    { id:"PX258H", name:"PX258H Hayabusa", series:"Hayabusa", badge:"400Hz e스포츠",
+      headline:"400Hz, 찰나를 더 촘촘하게",
+      desc:"25형 FHD·400Hz·1ms(GTG)로 높은 프레임을 우선하는 경쟁 FPS 환경에 집중한 모델입니다. 에임 트레이닝과 빠른 반응형 게임을 중심으로 플레이하고, DP 1.4 기반의 초고주사율 구성을 원하는 사용자에게 적합합니다.",
+      short:"400Hz 고프레임 경쟁 플레이 최우선",
+      specs:["25형 FHD","Fast IPS","400Hz","1ms(GTG)","DP 1.4×2","Adaptive Sync 48~400Hz","풀 스탠드(피벗)"],
+      inch:25, res:"fhd", refresh:400, colorways:1, consoleNative:true,
+      price:{ now:508900, normal:519000, off:2, tier:"성능 중심형", status:"판매 중",
+              url:"https://pixiogaming.co.kr/product/px258h-hayabusa/50/category/46/display/1/" },
+      pre:{ level:"조건 확인",
+            text:"400Hz는 DP 연결과 고프레임 PC 환경이 필요합니다. 콘솔은 최대 120Hz 범위로 제한되며, USB 단자는 펌웨어 업데이트 전용입니다." },
+      s:{fps:5,moba:4,race:4,aaa:3,dark:2,hires:2,doc:3,multi:3,photo:2,video:2,usbc:1} }
+  ];
+
+  var DIM = { fps:"경쟁 FPS", moba:"MOBA·RTS", race:"레이싱·시뮬", aaa:"AAA·RPG",
+              dark:"어두운·시네마틱", hires:"고해상도 게임", doc:"문서·코딩",
+              multi:"멀티윈도", photo:"사진·디자인", video:"영상 편집", usbc:"USB-C 노트북" };
+  var LEVEL = { 5:"핵심 추천", 4:"추천", 3:"일반 활용", 2:"제한적", 1:"비추천" };
+  var LVCOL = { 5:"--pxp-l5", 4:"--pxp-l4", 3:"--pxp-l3", 2:"--pxp-l2", 1:"--pxp-l1" };
+  var RESL  = { fhd:"FHD", qhd:"QHD", uhd:"4K UHD", uwqhd:"UWQHD" };
+
+  /* ========== 2. 설문 문항 (8문항) ========== */
+  var QUESTIONS = [
+    { id:"purpose", type:"single", sum:"사용 목적", title:"모니터를 주로 어디에 쓰시나요?", sub:"하나만 선택",
+      options:[
+        {v:"game", l:"게임 중심",        d:"플레이 시간이 압도적으로 많습니다"},
+        {v:"both", l:"게임 · 작업 반반",  d:"업무와 게임을 한 대로 함께 씁니다"},
+        {v:"work", l:"작업 중심",        d:"업무·창작이 주력, 게임은 가끔입니다"}
+      ]},
+    { id:"genre", type:"multi", sum:"게임 장르", title:"어떤 게임을 주로 하시나요?", sub:"복수 선택 가능",
+      options:[
+        {v:"fps",   l:"경쟁 FPS · 배틀로얄", d:"전술 FPS, 아레나 슈터", sl:"경쟁 FPS"},
+        {v:"moba",  l:"MOBA · RTS · 전략",   d:"AOS, 실시간 전략, 경영·건설", sl:"MOBA·RTS"},
+        {v:"race",  l:"레이싱 · 비행 · 시뮬", d:"드라이빙, 플라이트 시뮬", sl:"레이싱·시뮬"},
+        {v:"aaa",   l:"AAA · 오픈월드 RPG",  d:"액션 RPG, 어드벤처", sl:"AAA·RPG"},
+        {v:"dark",  l:"호러 · 시네마틱",      d:"어두운 장면이 많은 게임", sl:"호러·시네마틱"},
+        {v:"hires", l:"고해상도 · 콘솔 게임",  d:"4K 화질 우선 플레이", sl:"고해상도"},
+        {v:"none",  l:"게임은 거의 하지 않습니다", d:"", ex:true, sl:"해당 없음"}
+      ]},
+    { id:"work", type:"multi", sum:"작업 유형", title:"모니터로 하는 작업은 무엇인가요?", sub:"복수 선택 가능",
+      options:[
+        {v:"doc",   l:"문서 · 코딩 · 데이터", d:"스프레드시트, 개발, 분석", sl:"문서·코딩"},
+        {v:"multi", l:"멀티윈도 · 2기기",     d:"여러 창, 두 입력 소스 동시 사용", sl:"멀티윈도"},
+        {v:"photo", l:"사진 · 그래픽 디자인",  d:"보정, UI·웹 디자인", sl:"사진·디자인"},
+        {v:"video", l:"영상 편집 · 모션",     d:"타임라인, 4K 편집", sl:"영상 편집"},
+        {v:"none",  l:"작업 용도는 거의 없습니다", d:"", ex:true, sl:"해당 없음"}
+      ]},
+    { id:"inch", type:"single", sum:"화면 크기", title:"원하는 화면 크기가 있나요?", sub:"책상 폭과 시야 거리를 함께 고려하세요",
+      options:[
+        {v:"any", l:"상관없습니다",  d:"용도에 맞는 크기를 골라드립니다", sl:"상관없음"},
+        {v:24,    l:"24인치",       d:"작은 책상·듀얼 모니터 구성"},
+        {v:25,    l:"25인치",       d:"경쟁 게임용 표준 사이즈"},
+        {v:27,    l:"27인치",       d:"가장 무난한 표준 사이즈"},
+        {v:32,    l:"32인치",       d:"대화면 · 넓은 작업 면적"},
+        {v:34,    l:"34인치 (울트라와이드)", d:"곡면 몰입감과 가로 작업 공간", sl:"34인치 UW"}
+      ]},
+    { id:"res", type:"single", sum:"해상도", title:"원하는 해상도가 있나요?", sub:"높을수록 화면이 세밀해지고, 필요한 PC 사양도 올라갑니다",
+      options:[
+        {v:"any",   l:"상관없습니다",  d:"용도에 맞는 해상도를 골라드립니다", sl:"상관없음"},
+        {v:"fhd",   l:"FHD",         d:"1920 × 1080 · 높은 프레임 확보에 유리"},
+        {v:"qhd",   l:"QHD",         d:"2560 × 1440 · 화질과 프레임의 균형"},
+        {v:"uhd",   l:"4K UHD",      d:"3840 × 2160 · 최고 선명도와 작업 면적"},
+        {v:"uwqhd", l:"UWQHD",       d:"3440 × 1440 · 21:9 울트라와이드"}
+      ]},
+    { id:"usbc", type:"single", sum:"USB-C 연결", title:"노트북을 USB-C 케이블 하나로 연결하실 건가요?", sub:"화면 출력과 충전을 케이블 1개로 처리하는 방식입니다",
+      options:[
+        {v:"must", l:"반드시 필요합니다", d:"노트북 단일 케이블 작업이 주 환경", sl:"필수"},
+        {v:"nice", l:"있으면 좋습니다",   d:"꼭 필요하진 않지만 있으면 편리합니다", sl:"있으면 좋음"},
+        {v:"no",   l:"필요 없습니다",     d:"데스크톱 PC·콘솔 위주", sl:"불필요"}
+      ]},
+    /* 연결 기기 : 콘솔은 16:9 표준 해상도·최대 120Hz 범위에서 동작하므로 21:9 모델과 구분합니다 */
+    { id:"device", type:"single", sum:"연결 기기", title:"모니터를 어디에 연결해서 쓰실 예정인가요?",
+      sub:"PS5 · Xbox 등 콘솔은 지원 해상도와 주사율 범위가 PC와 다릅니다",
+      options:[
+        {v:"pc",   l:"PC에만 연결합니다",        d:"데스크톱 또는 노트북 중심", sl:"PC"},
+        {v:"both", l:"PC와 콘솔을 함께 씁니다",   d:"평소엔 PC, 가끔 PS5·Xbox 연결", sl:"PC+콘솔"},
+        {v:"con",  l:"콘솔 위주로 씁니다",       d:"PS5 · Xbox 연결이 주 용도", sl:"콘솔 위주"}
+      ]},
+    /* 예산 : 선택한 구간의 상한 이하 제품을 후보로 둡니다 (판매가 조사 시트 기준) */
+    { id:"budget", type:"single", sum:"예산", title:"예산은 어느 정도로 보고 계신가요?", sub:"선택하신 금액 이하의 제품 중에서 찾아드립니다",
+      options:[
+        {v:"any", l:"아직 정하지 않았습니다", d:"가격보다 용도에 맞춰 추천해 드립니다", sl:"미정"},
+        {v:"b30", l:"30만원 이하",  d:"가볍게 시작 — 입문·실속 구성", sl:"30만 이하"},
+        {v:"b40", l:"40만원 이하",  d:"합리적 선택 — 기능과 가격의 균형", sl:"40만 이하"},
+        {v:"b50", l:"50만원 이하",  d:"기능 확장형 — 해상도·화면비·연결 확장", sl:"50만 이하"},
+        {v:"b70", l:"70만원 이하",  d:"성능 중심형 — 고주사율·특화 성능", sl:"70만 이하"},
+        {v:"b99", l:"제한 없음",    d:"플래그십형 — 최상위 사양·대화면", sl:"상한 없음"}
+      ]},
+    /* 가산점 축 : 용도 적합도가 비슷한 후보들 사이의 순위만 결정합니다 */
+    { id:"boost", type:"multi", max:2, sum:"중요하게 보는 것", title:"마지막으로, 무엇을 더 중요하게 보시나요?",
+      sub:"최대 2개까지 고를 수 있습니다",
+      options:[
+        {v:"speed",   l:"주사율 · 반응속도",     d:"프레임이 곧 실력", sl:"주사율"},
+        {v:"quality", l:"화질 · 명암비 · 색",     d:"보이는 깊이가 중요", sl:"화질·색"},
+        {v:"space",   l:"넓은 작업 공간",         d:"해상도와 화면 면적 우선", sl:"작업 공간"},
+        {v:"cost",    l:"비용 효율성",            d:"같은 값이면 부담이 적은 쪽으로", sl:"비용 효율"},
+        {v:"color",   l:"데스크테리어 · 컬러 선택", d:"책상·주변기기와 어울리는 색상", sl:"데스크테리어"}
+      ]}
+  ];
+
+  var GAME_DIMS = ["fps","moba","race","aaa","dark","hires"];
+  var WORK_DIMS = ["doc","multi","photo","video"];
+  var PURPOSE_W = { game:{g:1.0,w:0.30}, both:{g:0.70,w:0.70}, work:{g:0.30,w:1.0} };
+
+  /* ========== 3. 추천 스코어링 (2단계) ==========
+     Ver1.4 평가 기준 시트의 운영 원칙을 그대로 구현합니다.
+       "비용·디자인 요소는 성능 및 용도 적합도와 분리하여 검토한다.
+        동점 또는 유사 점수 제품을 비교할 때 참고하며, 1~5점 적합도 점수에는 직접 합산하지 않는다."
+
+     1단계 : 하드 조건 필터(크기·해상도·USB-C·예산) → 용도 적합도 base(1~5) 산출
+     2단계 : base 최고점과 0.5점 이내인 '유사군' 안에서만 가산점으로 순위 결정
+     따라서 화면에 표시되는 적합도 %는 순수하게 용도 적합도이며, 가산점은 %에 반영되지 않습니다. */
+
+  function won(n) { return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ","); }
+
+  var SIM_BAND  = 0.5;                    // 유사군 판정 폭 (5점 만점 기준 10%)
+  var BUDGET_CAP = { b30:299999, b40:399999, b50:499999, b70:699999, b99:Infinity };
+
+  /* --- 가산점 축 (0~1 로 정규화) --- */
+  function boostValue(m, key, group) {
+    if (key === "speed")   return Math.min(1, Math.max(0, (m.refresh - 140) / 260));   // 144Hz≈0 ~ 400Hz=1
+    if (key === "quality") return (m.s.dark + m.s.photo) / 10;                          // 명암·색 표현 축
+    if (key === "space")   return (m.s.multi + m.s.hires) / 10;                         // 정보량·작업면적 축
+    if (key === "color")   return m.colorways >= 8 ? 1 : 0;                             // 컬러 선택 폭
+    if (key === "cost") {                                                               // 유사군 안에서의 상대 가격
+      if (m.price.now == null) return null;                                             // 가격 미확인 → 비교 제외
+      var ps = group.map(function (x) { return x.price.now; }).filter(function (v) { return v != null; });
+      if (!ps.length) return null;
+      var lo = Math.min.apply(null, ps), hi = Math.max.apply(null, ps);
+      return hi === lo ? 1 : (hi - m.price.now) / (hi - lo);                            // 저렴할수록 1에 가까움
+    }
+    return 0;
+  }
+  function boostScore(m, keys, group) {
+    if (!keys.length) return 0;
+    var t = 0, n = 0;
+    keys.forEach(function (k) {
+      var v = boostValue(m, k, group);
+      if (v !== null) { t += v; n++; }
+    });
+    return n ? t / n : 0;
+  }
+
+  /* --- 하드 조건 필터. 충족 모델이 없으면 해상도 → 크기 → USB-C 순으로 완화합니다.
+         예산은 완화하지 않습니다(초과 제품을 권해도 구매로 이어지지 않으므로). --- */
+  function buildPool(ans) {
+    var wi = ans.inch && ans.inch !== "any",
+        wr = ans.res && ans.res !== "any",
+        wb = ans.budget && ans.budget !== "any",
+        uu = ans.usbc === "must",
+        wc = ans.device === "con";          /* 콘솔 위주 : 네이티브 출력이 되는 모델만 */
+    var cap = wb ? BUDGET_CAP[ans.budget] : Infinity;
+    var notes = [], priceSkipped = false;
+
+    function f(useI, useR, useU) {
+      return MODELS.filter(function (m) {
+        if (wc && !m.consoleNative) return false;    /* 콘솔 네이티브 미지원 모델 제외 */
+        if (wb) {
+          if (m.price.now == null) { priceSkipped = true; return false; }   // 가격 미확인 → 예산 비교 불가
+          if (m.price.now > cap) return false;
+        }
+        return (!useI || m.inch === ans.inch) && (!useR || m.res === ans.res) && (!useU || m.s.usbc >= 4);
+      });
+    }
+    var pool = f(wi, wr, uu), relaxed = [];
+    if (!pool.length && wr) { pool = f(wi, false, uu); if (pool.length) relaxed.push("해상도"); }
+    if (!pool.length && wi) { pool = f(false, false, uu); if (pool.length) relaxed.push("화면 크기"); }
+    if (!pool.length && uu) { pool = f(false, false, false); if (pool.length) relaxed.push("USB-C 연결"); }
+    if (!pool.length)       { pool = MODELS.filter(function (m) {
+                                return (!wc || m.consoleNative) && (!wb || (m.price.now != null && m.price.now <= cap)); }); }
+    if (!pool.length)       { pool = MODELS.slice(); relaxed.push("예산"); }
+
+    if (relaxed.length) {
+      /* 크기·해상도가 바뀐 경우는 결과 상단 안내 블록에서 자세히 설명하므로 여기서는 생략합니다. */
+      var onlySize = relaxed.every(function (x) { return x === "화면 크기" || x === "해상도"; });
+      if (!onlySize) {
+        notes.push("고르신 조건에 모두 맞는 모니터가 없어 " + relaxed.join(" · ") +
+                   " 조건을 조정해 추천드립니다." + (wb ? " 예산은 그대로 맞췄습니다." : ""));
+      }
+    }
+    if (wb && priceSkipped) {
+      notes.push("PX27 LUMA OLED Glossy는 공식 판매가 준비 중이라 이번 추천에서는 제외했습니다.");
+    }
+    return { pool: pool, notes: notes, wi: wi, wr: wr, wb: wb, uu: uu, wc: wc, cap: cap, relaxed: relaxed };
+  }
+
+  /* 고르신 조건을 순서대로 좁혀가며, 어느 지점에서 후보가 사라졌는지 특정합니다. */
+  function diagnose(ans, cap, wi, wr, wb, uu, wc) {
+    var cand = MODELS.slice(), qual = [];
+    if (wc) { cand = cand.filter(function (m) { return m.consoleNative; }); qual.push("콘솔 연결"); }
+    if (wi) { cand = cand.filter(function (m) { return m.inch === ans.inch; }); qual.push(ans.inch + "인치"); }
+    var head = function () { return qual.length ? "고르신 " + qual.join(" ") : "고르신 조건"; };
+
+    if (wr) {
+      var a1 = cand.filter(function (m) { return m.res === ans.res; });
+      if (!a1.length) return { why: head() + " 중에는 " + RESL[ans.res] + " 제품이 없습니다", blocker: "res" };
+      cand = a1; qual.push(RESL[ans.res]);
+    }
+    if (uu) {
+      var a2 = cand.filter(function (m) { return m.s.usbc >= 4; });
+      if (!a2.length) return { why: head() + " 중에는 USB-C 한 케이블 연결이 되는 제품이 없습니다", blocker: "usbc" };
+      cand = a2; qual.push("· USB-C 연결");
+    }
+    if (wb) {
+      var a3 = cand.filter(function (m) { return m.price.now != null && m.price.now <= cap; });
+      if (!a3.length) return { why: head() + " 조건에 맞는 제품은 선택하신 예산을 넘습니다", blocker: "budget" };
+    }
+    return { why: "고르신 조건을 모두 만족하는 제품이 없습니다", blocker: "none" };
+  }
+
+  function score(ans) {
+    var pw = PURPOSE_W[ans.purpose] || PURPOSE_W.both;
+    var gd = (ans.genre || []).filter(function (v) { return v !== "none"; });
+    var wd = (ans.work  || []).filter(function (v) { return v !== "none"; });
+    if (!gd.length && !wd.length) { gd = GAME_DIMS.slice(); wd = WORK_DIMS.slice(); }
+    var bk = (ans.boost || []).slice();
+
+    var pf = buildPool(ans), pool = pf.pool, notes = pf.notes;
+
+    /* 1단계 : 용도 적합도만으로 base 산출 */
+    var all = MODELS.map(function (m) {
+      var num = 0, den = 0;
+      if (gd.length) { num += pw.g * avg(m.s, gd); den += pw.g; }
+      if (wd.length) { num += pw.w * avg(m.s, wd); den += pw.w; }
+      var base = den ? num / den : 3;
+      var why = [];
+      if (pf.wi && m.inch !== ans.inch) why.push(m.inch + "형");
+      if (pf.wr && m.res !== ans.res)   why.push(RESL[m.res]);
+      if (pf.wb && m.price.now == null) why.push("가격 확인 중");
+      else if (pf.wb && m.price.now > pf.cap) why.push("예산 초과 " + won(m.price.now) + "원");
+      if (ans.usbc === "must" && m.s.usbc < 4) why.push("USB-C 미지원");
+      if (pf.wc && !m.consoleNative) why.push("콘솔 네이티브 미지원");
+      return { m:m, base:base, fit: Math.max(45, Math.min(99, Math.round(base / 5 * 100))),
+               inPool: pool.indexOf(m) >= 0, outWhy: why.join(" · "),
+               offCond: why.length > 0 };
+    });
+
+    /* 2단계 : 유사군(최고점 - 0.5 이내) 안에서만 가산점으로 순위 결정 */
+    var cand = all.filter(function (r) { return r.inPool; });
+    var best = cand.length ? Math.max.apply(null, cand.map(function (r) { return r.base; })) : 0;
+    var simRows = cand.filter(function (r) { return r.base >= best - SIM_BAND; });
+    var simModels = simRows.map(function (r) { return r.m; });
+    simRows.forEach(function (r) { r.boost = boostScore(r.m, bk, simModels); r.inSim = true; });
+
+    function byPrice(a, b) {                                  // 동점 시 : 판매가가 낮은 쪽 → 주사율이 높은 쪽
+      var pa = a.m.price.now == null ? Infinity : a.m.price.now;
+      var pb = b.m.price.now == null ? Infinity : b.m.price.now;
+      return pa - pb || b.m.refresh - a.m.refresh;
+    }
+    simRows.sort(function (a, b) { return (b.boost - a.boost) || (b.base - a.base) || byPrice(a, b); });
+    var restIn = cand.filter(function (r) { return !r.inSim; })
+                     .sort(function (a, b) { return b.base - a.base || byPrice(a, b); });
+    var outPool = all.filter(function (r) { return !r.inPool; })
+                     .sort(function (a, b) { return b.base - a.base || byPrice(a, b); });
+
+    var rows = simRows.concat(restIn, outPool);
+    if (!notes.length && pool.length < 3 && (pf.wi || pf.wr || pf.wb))
+      notes.push("고르신 조건에 맞는 모니터가 많지 않아, 조건을 조금 넓힌 모델도 함께 보여드립니다.");
+
+    /* 고르신 조건과 실제 추천 결과가 달라진 부분을 정리합니다. */
+    var top = rows[0], swap = null;
+    if (top) {
+      var dg = diagnose(ans, pf.cap, pf.wi, pf.wr, pf.wb, pf.uu, pf.wc);
+      if (pf.wi && top.m.inch !== ans.inch) {
+        swap = { kind:"inch", label:"화면 크기", from: ans.inch + "인치", to: top.m.inch + "인치", why: dg.why };
+      } else if (pf.wr && top.m.res !== ans.res) {
+        swap = { kind:"res", label:"해상도", from: RESL[ans.res], to: RESL[top.m.res], why: dg.why };
+      }
+    }
+    return { rows: rows, dims: gd.concat(wd).concat(ans.usbc === "must" ? ["usbc"] : []),
+             notes: notes, simCount: simRows.length, boostKeys: bk, band: SIM_BAND,
+             swap: swap, ans: ans, cond: pf };
+  }
+  function avg(s, keys) { var t = 0; keys.forEach(function (k) { t += s[k]; }); return t / keys.length; }
+
+  /* ========== 4. 상태 및 공통 유틸 ==========
+     응답은 이 객체(메모리)에만 존재하며 쿠키·localStorage·서버 전송을 사용하지 않습니다. */
+  var HEAD = { t:'나에게 맞는 픽시오는 <em>어떤 모델일까요?</em>',
+               s:'즐겨 하시는 게임과 주로 하시는 일, 예산을 알려주시면 가장 잘 맞는 모니터를 찾아드립니다.' };
+  var blank = function () { return { purpose:null, genre:[], work:[], inch:null, res:null, usbc:null, device:null, budget:null, boost:[] }; };
+  var state = { step:0, ans:blank(), busy:false, timers:[] };
+  var $ = function (id) { return document.getElementById(id); };
+  function esc(t) { return String(t).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+  function clearTimers() { state.timers.forEach(function (t) { clearTimeout(t); clearInterval(t); }); state.timers = []; }
+  function later(fn, ms) { var t = setTimeout(fn, ms); state.timers.push(t); return t; }
+  function optOf(q, v) { var h = null; q.options.forEach(function (o) { if (String(o.v) === String(v)) h = o; }); return h; }
+
+  /* 선택 요약 텍스트 */
+  function sumText(q) {
+    var v = state.ans[q.id];
+    if (q.type === "single") { var o = v === null ? null : optOf(q, v); return o ? (o.sl || o.l) : null; }
+    if (!v || !v.length) return null;
+    var ls = v.map(function (x) { var o = optOf(q, x); return o ? (o.sl || o.l) : x; });
+    return ls.length > 2 ? ls[0] + " 외 " + (ls.length - 1) + "개" : ls.join(", ");
+  }
+  function renderSum() {
+    var h = "";
+    QUESTIONS.forEach(function (q, i) {
+      var t = sumText(q), cls = t ? "is-done" : (i === state.step ? "is-now" : "is-todo");
+      if (i === state.step && !t) cls = "is-now";
+      h += '<li class="' + cls + '" data-i="' + i + '"><div class="k"><i>' + (t ? "✓" : (i + 1)) + '</i>' + esc(q.sum) + '</div>' +
+           '<div class="v">' + (t ? esc(t) : "선택 전") + '</div></li>';
+    });
+    $("pxpSum").innerHTML = h;
+    $("pxpSum").querySelectorAll("li.is-done").forEach(function (li) {
+      li.addEventListener("click", function () {
+        var i = +li.getAttribute("data-i");
+        if (!state.busy && i !== state.step && state.step < QUESTIONS.length) goStep(i);
+      });
+    });
+  }
+
+  /* 화면 전환 : 페이드 아웃 → 교체 → 높이 애니메이션 → 페이드 인 */
+  function swap(build, outMs) {
+    if (state.busy) return;
+    state.busy = true;
+    var st = $("pxpStage"), h0 = st.offsetHeight;
+    st.style.height = h0 + "px"; st.style.overflow = "hidden";
+    st.classList.add("is-out");
+    later(function () {
+      build();
+      var h1 = st.scrollHeight;
+      st.classList.remove("is-out");
+      st.style.transition = "height .3s cubic-bezier(.3,.8,.3,1)";
+      requestAnimationFrame(function () { st.style.height = h1 + "px"; });
+      state.busy = false;                       // 높이 애니메이션 중에도 다음 클릭을 받습니다
+      later(function () { st.style.height = ""; st.style.overflow = ""; st.style.transition = ""; }, 320);
+    }, outMs || 160);
+  }
+  function goStep(n) { swap(function () { state.step = n; renderQ(); }); }
+
+  /* ========== 5. 문항 화면 ========== */
+  function renderQ() {
+    var q = QUESTIONS[state.step], cur = state.ans[q.id];
+    $("pxpProg").style.display = "flex";
+    $("pxpSide").style.display = "";
+    $("pxpBody").classList.remove("is-wide");
+    $("pxpProgFill").style.width = ((state.step + 1) / QUESTIONS.length * 100) + "%";
+    $("pxpProgTxt").textContent = (state.step + 1) + " / " + QUESTIONS.length;
+
+    var html = '<div class="pxp-q"><div class="pxp-sheet">' +
+               '<div class="pxp-sec-head"><h3>' + esc(q.title) + '</h3>' +
+               (q.sub ? '<span class="note">' + esc(q.sub) + '</span>' : '') + '</div>' +
+               '<div class="pxp-sec-body">' +
+               '<div class="pxp-opts' + (q.options.length <= 3 ? " is-single" : "") + '">';
+    q.options.forEach(function (o) {
+      var sel = q.type === "single" ? cur === o.v : (cur || []).indexOf(o.v) >= 0;
+      html += '<button type="button" class="pxp-opt' + (sel ? " is-sel" : "") + '" data-v="' + o.v + '">' +
+              '<span class="pxp-opt-l"><span class="pxp-chk">' + (sel ? "✓" : "") + '</span>' + esc(o.l) + '</span>' +
+              (o.d ? '<span class="pxp-opt-d">' + esc(o.d) + '</span>' : '') + '</button>';
+    });
+    html += '</div>';
+    if (q.max) html += '<div class="pxp-hint" id="pxpHint"></div>';
+    html += '</div></div>';                       /* .pxp-sec-body / .pxp-sheet 닫기 */
+    html += '<div class="pxp-nav">' +
+            (state.step > 0 ? '<button type="button" class="pxp-btn" data-act="prev">이전</button>' : '') +
+            '<button type="button" class="pxp-btn pxp-btn-main" data-act="next"' + (isDone(q) ? "" : " disabled") + '>' +
+            (state.step === QUESTIONS.length - 1 ? "추천 결과 보기" : "다음") + '</button></div></div>';
+    $("pxpStage").innerHTML = html;
+    renderSum();
+    updateHint(q);
+
+    $("pxpStage").querySelectorAll(".pxp-opt").forEach(function (b) {
+      b.addEventListener("click", function () { pick(q, b.getAttribute("data-v")); });
+    });
+    $("pxpStage").querySelectorAll("[data-act]").forEach(function (b) {
+      b.addEventListener("click", function () {
+        if (b.getAttribute("data-act") === "next") next(); else goStep(state.step - 1);
+      });
+    });
+  }
+  function next() {
+    if (state.step === QUESTIONS.length - 1) renderLoading();
+    else goStep(state.step + 1);
+  }
+  function isDone(q) {
+    var v = state.ans[q.id];
+    return q.type === "single" ? (v !== null && v !== undefined) : (v && v.length > 0);
+  }
+  /* 선택 표시는 재렌더 없이 DOM만 갱신해 깜빡임을 없앱니다. */
+  function markSel(q) {
+    var st = $("pxpStage");
+    st.querySelectorAll(".pxp-opt").forEach(function (b) {
+      var o = optOf(q, b.getAttribute("data-v"));
+      var sel = q.type === "single" ? state.ans[q.id] === o.v : state.ans[q.id].indexOf(o.v) >= 0;
+      b.classList.toggle("is-sel", sel);
+      b.querySelector(".pxp-chk").textContent = sel ? "✓" : "";
+    });
+    var nx = st.querySelector('[data-act="next"]');
+    if (nx) nx.disabled = !isDone(q);
+    renderSum();
+    updateHint(q);
+  }
+  function updateHint(q) {
+    var el = $("pxpHint");
+    if (!el || !q.max) return;
+    var n = (state.ans[q.id] || []).length;
+    el.innerHTML = n >= q.max
+      ? "최대 " + q.max + "개까지 선택할 수 있습니다. 다른 항목을 누르면 <b>먼저 고른 항목이 해제</b>됩니다."
+      : "현재 " + n + "개 선택 · 최대 " + q.max + "개까지 고를 수 있습니다.";
+  }
+  function pick(q, raw) {
+    if (state.busy) return;
+    var o = optOf(q, raw), v = o.v;
+    if (q.type === "single") {
+      state.ans[q.id] = v;                           // 자동 이동 없이 선택만 반영 — '다음'을 눌러야 넘어갑니다
+      markSel(q);
+      return;
+    }
+    var arr = state.ans[q.id].slice();
+    if (o.ex) { arr = arr.indexOf(v) >= 0 ? [] : [v]; }
+    else {
+      arr = arr.filter(function (x) {
+        return !q.options.filter(function (z) { return z.ex; }).some(function (z) { return z.v === x; });
+      });
+      arr = arr.indexOf(v) >= 0 ? arr.filter(function (x) { return x !== v; }) : arr.concat([v]);
+      if (q.max && arr.length > q.max) arr = arr.slice(arr.length - q.max);   // 가장 먼저 고른 항목을 밀어냅니다
+    }
+    state.ans[q.id] = arr;
+    markSel(q);
+  }
+
+  /* ========== 6. 분석 로딩 (약 3.8초) ========== */
+  var LOAD_STEPS = [
+    "선택하신 내용 확인하기",
+    "픽시오 모니터 하나씩 살펴보기",
+    "즐기시는 게임과 하시는 일에 맞춰보기",
+    "화면 크기 · 해상도 · 연결 환경 · 예산 맞춰보기",
+    "가장 잘 맞는 한 대 고르기"
+  ];
+  var LOAD_MS = 3800;
+
+  function renderLoading() {
+    swap(function () {
+      $("pxpProg").style.display = "none";
+      $("pxpSide").style.display = "none";
+      $("pxpBody").classList.add("is-wide");
+      $("pxpSub").style.display = "";
+      $("pxpTitle").innerHTML = '잘 맞는 모니터를 <em>찾고 있습니다</em>';
+      $("pxpSub").textContent = "고르신 내용에 맞춰 픽시오 모니터를 살펴보고 있습니다.";
+      var svg =
+        '<svg viewBox="0 0 160 160" aria-hidden="true">' +
+        '<defs><linearGradient id="pxpSweepG" x1="0" y1="0" x2="1" y2="0">' +
+        '<stop offset="0%" stop-color="#ff4200" stop-opacity="0"/><stop offset="100%" stop-color="#ff4200" stop-opacity=".5"/>' +
+        '</linearGradient></defs>' +
+        '<circle class="pxp-ring" cx="80" cy="80" r="70"/>' +
+        '<circle class="pxp-ring" cx="80" cy="80" r="52"/>' +
+        '<circle class="pxp-ring" cx="80" cy="80" r="34"/>' +
+        '<circle class="pxp-ring pxp-ring-a" cx="80" cy="80" r="61"/>' +
+        '<circle class="pxp-ring pxp-ring-b" cx="80" cy="80" r="43"/>' +
+        '<g class="pxp-sweep"><path d="M80 80 L150 80 A70 70 0 0 0 115 19 Z" fill="url(#pxpSweepG)" opacity=".6"/>' +
+        '<line x1="80" y1="80" x2="150" y2="80" stroke="#ff4200" stroke-width="1.6"/></g>' +
+        '<circle class="pxp-blip" cx="118" cy="52" r="3" fill="#ff4200"/>' +
+        '<circle class="pxp-blip" cx="52"  cy="104" r="2.5" fill="#111" style="animation-delay:.5s"/>' +
+        '<circle class="pxp-blip" cx="96"  cy="118" r="2" fill="#111" style="animation-delay:.9s"/>' +
+        '</svg>';
+      $("pxpStage").innerHTML =
+        '<div class="pxp-load"><div class="pxp-scan">' + svg +
+        '<div class="pxp-scan-pct" id="pxpPct">0<span>%</span></div></div>' +
+        '<div class="pxp-load-t">거의 다 됐습니다</div>' +
+        '<div class="pxp-load-s">잠시만 기다려 주세요</div>' +
+        '<ul class="pxp-steps" id="pxpSteps">' +
+        LOAD_STEPS.map(function (t) { return '<li><span class="pxp-dot"></span>' + esc(t) + '</li>'; }).join("") +
+        '</ul><div class="pxp-tick" id="pxpTick"></div></div>';
+
+      var t0 = Date.now(), pct = $("pxpPct"), tick = $("pxpTick"), lis = $("pxpSteps").children;
+      var iv = setInterval(function () {
+        var p = Math.min(1, (Date.now() - t0) / LOAD_MS);
+        pct.innerHTML = Math.round((1 - Math.pow(1 - p, 1.35)) * 100) + '<span>%</span>';
+        var si = Math.min(LOAD_STEPS.length - 1, Math.floor(p * LOAD_STEPS.length));
+        for (var k = 0; k < lis.length; k++) {
+          lis[k].className = k < si ? "is-done" : (k === si ? "is-on" : "");
+          lis[k].querySelector(".pxp-dot").textContent = k < si ? "✓" : "";
+        }
+        if (p >= 1) { clearInterval(iv); for (var n = 0; n < lis.length; n++) { lis[n].className = "is-done"; lis[n].querySelector(".pxp-dot").textContent = "✓"; } }
+      }, 40);
+      state.timers.push(iv);
+
+      var mi = 0;
+      var iv2 = setInterval(function () {
+        tick.innerHTML = '확인 중 · <b>' + esc(MODELS[mi % MODELS.length].name) + '</b>'; mi++;
+      }, 280);
+      state.timers.push(iv2);
+
+      later(function () { clearInterval(iv2); swap(renderResult, 220); }, LOAD_MS + 200);
+    });
+  }
+
+  /* ========== 7. 결과 ========== */
+  function bars(m, dims) {
+    if (!dims.length) return "";
+    var uniq = dims.filter(function (d, i) { return dims.indexOf(d) === i; });
+    uniq.sort(function (a, b) { return m.s[b] - m.s[a]; });
+    var h = '<div class="pxp-bars"><div class="pxp-bars-t">고르신 용도에 얼마나 맞는지</div>';
+    uniq.forEach(function (d) {
+      var v = m.s[d];
+      h += '<div class="pxp-bar"><div class="pxp-bar-k">' + DIM[d] + '</div>' +
+           '<div class="pxp-bar-t"><div class="pxp-bar-f" style="width:' + (v / 5 * 100) + '%;background:var(' + LVCOL[v] + ')"></div></div>' +
+           '<div class="pxp-bar-v" style="color:var(' + LVCOL[v] + ')">' + LEVEL[v] + '</div></div>';
+    });
+    return h + '</div>';
+  }
+
+  var BOOST_L = { speed:"빠른 주사율", quality:"화질", space:"넓은 화면",
+                  cost:"가격 부담", color:"책상 분위기와 컬러" };
+
+  /* 가격 블록 — 판매가 조사 시트(2026-08-28) 기준 */
+  function priceBox(m) {
+    if (m.price.now == null) {
+      return '<div class="pxp-price na"><div><div class="pl">공식 판매가</div>' +
+             '<div class="pn">' + esc(m.price.tier) + '</div>' +
+             '<div class="po">국내 공식 스토어 판매 페이지 등록 후 금액이 확정됩니다.</div></div>' +
+             '<span class="pxp-tier" style="color:#7a5f00">가격 확인 중</span></div>';
+    }
+    var off = (m.price.normal && m.price.normal > m.price.now)
+      ? '<s>' + won(m.price.normal) + '원</s> &nbsp;<b>' + m.price.off + '% 할인</b>' : '정상가 기준';
+    return '<div class="pxp-price"><div><div class="pl">현재 공식 판매가</div>' +
+           '<div class="pn">' + won(m.price.now) + '<span>원</span></div>' +
+           '<div class="po">' + off + '</div></div>' +
+           '<span class="pxp-tier">' + esc(m.price.tier) + '</span></div>';
+  }
+
+  /* 선정 근거 — 1단계(용도 적합도)와 2단계(가산점)를 나누어 설명 */
+  function whyBox(r, top) {
+    var t;
+    if (r.simCount <= 1) {
+      t = '고르신 조건에 <b>가장 잘 맞는 모니터</b>입니다.';
+    } else if (r.boostKeys.length) {
+      var names = r.boostKeys.map(function (k) { return BOOST_L[k]; }).join(" · ");
+      t = '비슷하게 잘 맞는 <b>' + r.simCount + '개 모니터</b> 가운데 <em>' + esc(names) + '</em>을 우선해 골랐습니다.';
+      if (r.boostKeys.indexOf("cost") >= 0 && top.m.price.now == null)
+        t += ' <span style="color:#7a5f00">(이 모델은 판매가 준비 중이라 가격 비교에서는 빠졌습니다)</span>';
+    } else {
+      t = '비슷하게 잘 맞는 <b>' + r.simCount + '개 모니터</b> 가운데 <b>가격 부담이 가장 적은</b> 모델로 골랐습니다.';
+    }
+    return '<div class="pxp-why">' + t + '</div>';
+  }
+
+  /* 고르신 조건과 다른 결과가 나왔을 때, 그 이유를 결과 맨 위에 설명합니다. */
+  function swapBox(sw, top) {
+    if (!sw) return "";
+    return '<div class="pxp-swap">' +
+      '<div class="pxp-swap-t">' +
+      '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#ff4200" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">' +
+      '<path d="M7 16V4M7 4L3 8M7 4l4 4"/><path d="M17 8v12M17 20l4-4M17 20l-4-4"/></svg>' +
+      esc(sw.from) + '를 고르셨지만 <span style="color:#ff4200">' + esc(sw.to) + '</span> 모델을 추천드립니다</div>' +
+      '<p>' + esc(sw.why) + '. 나머지 조건은 그대로 두고 ' + esc(sw.label) + '만 조정했습니다.</p></div>';
+  }
+
+  /* 구매 전 확인 — Ver2.5 '구매 전 확인' 시트의 모델별 고객 안내 문구 */
+  function preBox(m, ans) {
+    if (!m.pre || !m.pre.text) return "";
+    var withConsole = ans && (ans.device === "both" || ans.device === "con");
+    var important = m.pre.level === "중요 안내" || (withConsole && !m.consoleNative);
+    var lead = (withConsole && !m.consoleNative) ? "콘솔도 함께 쓰신다면 꼭 확인해 주세요" : "구매 전 확인";
+    return '<div class="pxp-pre' + (important ? ' is-important' : '') + '">' +
+      '<div class="pxp-pre-t">' +
+      '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">' +
+      '<circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg>' + esc(lead) + '</div>' +
+      '<p>' + esc(m.pre.text) + '</p></div>';
+  }
+
+  function renderResult() {
+    var r = score(state.ans), top = r.rows[0], dims = r.dims;
+    var rest = r.rows.slice(1);
+    var inAlts  = rest.filter(function (x) { return x.inPool; }).slice(0, 2);
+    var outAlts = inAlts.length < 2
+      ? rest.filter(function (x) { return !x.inPool; }).slice(0, 2 - inAlts.length) : [];
+    var sw = r.swap;
+    var chips = QUESTIONS.map(function (q) {
+      var t = sumText(q);
+      if (!t) return "";
+      if (sw && ((sw.kind === "inch" && q.id === "inch") || (sw.kind === "res" && q.id === "res"))) {
+        return '<span class="pxp-chip changed">' + esc(q.sum) + ' <s>' + esc(sw.from) + '</s> → <b>' + esc(sw.to) + '</b></span>';
+      }
+      return '<span class="pxp-chip">' + esc(q.sum) + ' <b>' + esc(t) + '</b></span>';
+    }).join("");
+
+    $("pxpProg").style.display = "none";
+    $("pxpSide").style.display = "none";
+    $("pxpBody").classList.add("is-wide");
+    $("pxpTitle").innerHTML = '이 모니터를 <em>추천드립니다</em>';
+    $("pxpSub").style.display = "none";
+
+    var cond = (r.notes || []).map(function (t) {
+      return '<div class="pxp-note"><strong>안내</strong> · ' + t + '</div>';
+    }).join("");
+    var weak = dims.filter(function (d) { return top.m.s[d] <= 2; });
+    var note = weak.length
+      ? '<div class="pxp-note"><strong>참고하세요</strong> · <strong>' +
+        weak.map(function (d) { return DIM[d]; }).join(", ") +
+        '</strong>은(는) 이 모니터의 강점은 아닙니다.</div>'
+      : "";
+
+    var h = '<div class="pxp-res"><div class="pxp-chips">' + chips + '</div>' +
+      swapBox(sw, top) +
+      '<div class="pxp-card">' +
+      '<div class="pxp-sec-head"><h3>추천 모델</h3>' +
+      '<span class="note">고르신 조건에 가장 잘 맞는 한 대</span></div>' +
+      '<div class="pxp-sec-body">' +
+      '<div><span class="pxp-badge">' + esc(top.m.badge) + '</span>' +
+      (top.m.colorways >= 8 ? '<span class="pxp-badge col">' + top.m.colorways + '가지 컬러 선택</span>' : '') + '</div>' +
+      '<div class="pxp-card-top"><div><h3 class="pxp-name">' + esc(top.m.name) + '</h3>' +
+      '<p class="pxp-model">' + esc(top.m.series) + ' SERIES · ' + esc(top.m.id) + '</p></div>' +
+      '<div class="pxp-fit"><div class="pxp-fit-n">' + top.fit + '<span style="font-size:16px">%</span></div>' +
+      '<div class="pxp-fit-l">적합도</div></div></div>' +
+      '<p class="pxp-hl">' + esc(top.m.headline) + '</p>' +
+      '<p class="pxp-desc">' + esc(top.m.desc) + '</p>' +
+      priceBox(top.m) + preBox(top.m, r.ans) + whyBox(r, top) +
+      '<div class="pxp-specs">' + top.m.specs.map(function (s) { return '<span class="pxp-spec">' + esc(s) + '</span>'; }).join("") + '</div>' +
+      bars(top.m, dims) + cond + note + '</div></div>';
+
+    function altCard(a, out) {
+      return '<div class="pxp-alt"><div class="pxp-alt-h"><div class="pxp-alt-n">' + esc(a.m.name) +
+        (out ? ' <span style="font-size:10px;font-weight:700;color:var(--pxp-mute)">' + esc(a.outWhy || "조건 외") + '</span>' : '') +
+        '</div></div>' +
+        '<div class="pxp-alt-p">' + (a.m.price.now == null ? '가격 확인 중' : won(a.m.price.now) + '원') +
+        '<span>' + esc(a.m.price.tier) + (a.m.colorways >= 8 ? ' · 컬러 ' + a.m.colorways + '종' : '') + '</span></div>' +
+        '<div class="pxp-alt-d">' + esc(a.m.short) + '</div>' +
+        '<div class="pxp-alt-s">' + esc(a.m.specs.slice(0, 3).join(" · ")) + '</div></div>';
+    }
+    if (inAlts.length) {
+      h += '<div class="pxp-alt-t">같은 조건에서 함께 고려할 만한 모델</div><div class="pxp-alts">' +
+           inAlts.map(function (a) { return altCard(a, false); }).join("") + '</div>';
+    }
+    if (outAlts.length) {
+      h += '<div class="pxp-alt-t">조건을 조금 넓히면 고를 수 있는 모델</div>' +
+           '<div class="pxp-alts">' + outAlts.map(function (a) { return altCard(a, true); }).join("") + '</div>' +
+           '<p style="font-size:11.5px;color:var(--pxp-mute);margin-top:10px;line-height:1.6">' +
+           '고르신 조건에서는 조금 벗어나지만, 함께 살펴보실 만한 모니터입니다.</p>';
+    }
+
+    h += '<div class="pxp-cta"><a class="pxp-btn pxp-btn-main" href="' + top.m.price.url + '" target="_blank" rel="noopener">' +
+         esc(top.m.name) + ' 자세히 보기</a>' +
+         '<button type="button" class="pxp-btn" data-act="again">다시 찾아보기</button></div>' +
+         '<p class="pxp-foot">표시된 금액은 픽시오 공식 스토어 판매가이며, 프로모션에 따라 달라질 수 있습니다.</p></div>';
+
+    $("pxpStage").innerHTML = h;
+    state.ans = blank();          // 결과 산출 완료 → 응답 데이터 즉시 초기화 (저장하지 않음)
+
+    $("pxpStage").querySelector('[data-act="again"]').addEventListener("click", function () {
+      swap(function () { hardReset(); renderQ(); });
+    });
+    later(function () {
+      $("pxpStage").querySelectorAll(".pxp-bar-f").forEach(function (el) {
+        var w = el.style.width; el.style.width = "0"; requestAnimationFrame(function () { el.style.width = w; });
+      });
+    }, 60);
+  }
+
+  function hardReset() {
+    clearTimers();
+    state.step = 0; state.ans = blank(); state.busy = false;
+    $("pxpTitle").innerHTML = HEAD.t;
+    $("pxpSub").textContent = HEAD.s;
+    $("pxpSub").style.display = "";
+  }
+
+  /* ========== 8. 팝업 제어 ========== */
+  function open()  { hardReset(); renderQ(); $("pxpOverlay").classList.add("is-open"); document.body.style.overflow = "hidden"; }
+  function close() { clearTimers(); state.busy = false; state.ans = blank(); $("pxpOverlay").classList.remove("is-open"); document.body.style.overflow = ""; }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    $("pxpClose").addEventListener("click", close);
+    $("pxpOverlay").addEventListener("click", function (e) { if (e.target === $("pxpOverlay")) close(); });
+    document.addEventListener("keydown", function (e) { if (e.key === "Escape") close(); });
+    Array.prototype.forEach.call(document.querySelectorAll(".pxp-trigger"), function (b) {
+      b.addEventListener("click", open);
+    });
+    var AUTO_OPEN = false;               // ← true 로 바꾸면 3초 뒤 자동 노출
+    if (AUTO_OPEN) setTimeout(open, 3000);
+    renderQ();
+  });
+
+  return { open:open, close:close, _score:score, _models:MODELS, _questions:QUESTIONS };
+})();
+</script>
+<!-- ▲ 여기까지 복사 -->
+</body>
+</html>
